@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-The Almedia Link SDK includes the bundled assets and relies on the runtime
+The Almedia SDK includes the bundled assets and relies on the runtime
 dependencies listed below. Each is provided under its own license terms,
 reproduced in full in the "License Texts" section at the end of this file.
 These notices must be preserved when redistributing the SDK, including when it

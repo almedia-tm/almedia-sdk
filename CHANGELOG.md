@@ -1,6 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## [1.3.1] - 2026-10-02
+
+### Fixed
+- Fixed the package failing to compile on Unity 6.5 with `error CS0619: 'Object.GetInstanceID()' is obsolete`.
 
 ## [1.3.0] - 2026-09-30
 

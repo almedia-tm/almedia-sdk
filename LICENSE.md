@@ -1,6 +1,6 @@
-# ALMEDIA LINK SDK LICENSE
+# ALMEDIA SDK LICENSE
 
-This Almedia Link SDK License (the "**License**") governs Licensee's access to and use of the Almedia Link software development kit. It is an Exhibit to, and forms part of, the applicable and signed agreement between the parties (the "**Master Agreement**"). Capitalised terms not defined here have the meaning given in the Master Agreement.
+This Almedia SDK License (the "**License**") governs Licensee's access to and use of the Almedia software development kit. It is an Exhibit to, and forms part of, the applicable and signed agreement between the parties (the "**Master Agreement**"). Capitalised terms not defined here have the meaning given in the Master Agreement.
 
 **Almedia:** Almedia GmbH, Koppenstr. 8, 10243 Berlin (HRB 252752 B, VAT-ID DE334899614), Germany ("**Almedia**", "**we**", "**us**").
 
@@ -8,7 +8,7 @@ This Almedia Link SDK License (the "**License**") governs Licensee's access to a
 
 ## 1. Definitions
 
-**SDK**: the Almedia Link software development kit supplied by Almedia as a Unity package, comprising the Unity Layer and the Native Libraries (which Almedia may supply together or, at its discretion, separately), together with the Documentation and any updates Almedia makes available. The SDK excludes Third-Party Components (§ 6).
+**SDK**: the Almedia software development kit supplied by Almedia as a Unity package, comprising the Unity Layer and the Native Libraries (which Almedia may supply together or, at its discretion, separately), together with the Documentation and any updates Almedia makes available. The SDK excludes Third-Party Components (§ 6).
 
 **Unity Layer**: the C# scripts, UI prefabs, shaders, materials, settings assets and editor tooling supplied in **source form**.
 
