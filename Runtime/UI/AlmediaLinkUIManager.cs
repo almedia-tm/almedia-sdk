@@ -72,7 +72,7 @@ namespace AlmediaLink.UI
 
         private static bool PopupAlreadyOpen()
         {
-            if (_openPopup == null || !_openPopup.gameObject.activeSelf) return false;
+            if (_openPopup == null || !_openPopup.IsOpen) return false;
             AlmediaLog.Debug("A link popup is already open.");
             return true;
         }

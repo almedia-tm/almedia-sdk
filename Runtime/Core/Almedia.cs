@@ -7,7 +7,7 @@ namespace AlmediaSDK
 {
     public static class Almedia
     {
-        public static string Version => "1.3.1";
+        public static string Version => "1.3.2";
 
         /// <summary>
         /// The player's current status. Reads <see cref="AlmediaStatus.NotInitialized"/> until the
@@ -103,6 +103,9 @@ namespace AlmediaSDK
         private static ResolvedAlmediaConfig _activeConfig;
         private static bool _raisingInitializeError;
 
+        /// <summary>Replaced by tests. <see cref="ResetOnDomainReload"/> restores it.</summary>
+        internal static Func<bool> IsDevelopmentBuild = () => Debug.isDebugBuild;
+
         /// <summary>Raised after every successful <see cref="Initialize"/>. Subscriptions survive the domain-reload reset.</summary>
         internal static event Action Initialized;
 
@@ -174,7 +177,9 @@ namespace AlmediaSDK
 
 #if UNITY_EDITOR
             WarnAboutOversizedMeta(resolved);
+            WarnAboutInvalidBackend(resolved);
 #endif
+            LogCustomBackendInReleaseBuild(resolved);
 
             // A repeat call with the same effective configuration is a no-op: leave the
             // current status untouched. The native layer dedupes a same-config init without
@@ -266,7 +271,31 @@ namespace AlmediaSDK
                 $"Dropped from the linking link - over {ResolvedAlmediaConfig.MetaMaxBytes} UTF-8 bytes: " +
                 string.Join(", ", oversized));
         }
+
+        private static void WarnAboutInvalidBackend(ResolvedAlmediaConfig config)
+        {
+            var backend = config.Backend;
+            if (backend.IsProduction) return;
+
+            WarnIfInvalid("BackendUrl", backend.Url, "On a device");
+            if (backend.AttUrl != null) WarnIfInvalid("AttBackendUrl", backend.AttUrl, "On iOS");
+        }
+
+        private static void WarnIfInvalid(string field, string url, string where)
+        {
+            var reason = AlmediaBackend.InvalidityReason(url);
+            if (reason == null) return;
+
+            AlmediaLog.Warning($"{field} {reason}: \"{url}\". {where}, Initialize fails with InvalidConfiguration.");
+        }
 #endif
+
+        private static void LogCustomBackendInReleaseBuild(ResolvedAlmediaConfig config)
+        {
+            if (config.Backend.IsProduction || IsDevelopmentBuild()) return;
+
+            AlmediaLog.Error($"Custom backend in a release build: {config.Backend}. Remove BackendUrl from release builds.");
+        }
 
         /// <summary>
         /// Presents the link popup to a player who can link. The popup's button starts linking. The
@@ -456,6 +485,7 @@ namespace AlmediaSDK
             _legacy = LegacyStatusSnapshot.Initial;
             _progress = null;
             _activeConfig = null;
+            IsDevelopmentBuild = () => Debug.isDebugBuild;
         }
 
         private static void HandleStatusChanged(StatusChangedResponse response)

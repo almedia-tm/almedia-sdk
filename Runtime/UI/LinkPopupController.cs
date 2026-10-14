@@ -41,6 +41,10 @@ namespace AlmediaLink.UI
         [SerializeField] internal bool ApplyHostSettings = true;
 
         private bool _isClosing;
+        private bool _behindLinkingScreen;
+
+        /// <summary>True while the popup is shown, and while it waits hidden behind the linking screen.</summary>
+        internal bool IsOpen => gameObject.activeSelf || _behindLinkingScreen;
 
         private void Awake()
         {
@@ -54,6 +58,8 @@ namespace AlmediaLink.UI
             AlmediaLinkSDK.OnLinkCompleted += HandleLinkCompleted;
             AlmediaLinkSDK.OnErrorOccurred += HandleErrorOccurred;
             AlmediaLinkSDK.OnStatusChanged += HandleStatusChanged;
+            AlmediaLinkSDK.OnScreenPresented += HandleScreenPresented;
+            AlmediaLinkSDK.OnScreenDismissed += HandleScreenDismissed;
 
             gameObject.SetActive(false);
         }
@@ -76,6 +82,8 @@ namespace AlmediaLink.UI
             AlmediaLinkSDK.OnLinkCompleted -= HandleLinkCompleted;
             AlmediaLinkSDK.OnErrorOccurred -= HandleErrorOccurred;
             AlmediaLinkSDK.OnStatusChanged -= HandleStatusChanged;
+            AlmediaLinkSDK.OnScreenPresented -= HandleScreenPresented;
+            AlmediaLinkSDK.OnScreenDismissed -= HandleScreenDismissed;
         }
 
         public void Show()
@@ -110,15 +118,44 @@ namespace AlmediaLink.UI
 
         private void HandleStatusChanged(AlmediaStatus status)
         {
-            if (status != AlmediaStatus.Eligible && gameObject.activeInHierarchy)
+            if (status != AlmediaStatus.Eligible && (gameObject.activeInHierarchy || _behindLinkingScreen))
                 Close();
+        }
+
+        private void HandleScreenPresented(AlmediaScreen screen)
+        {
+            if (_isClosing || _behindLinkingScreen || !gameObject.activeInHierarchy) return;
+            if (screen != AlmediaScreen.Linking)
+            {
+                Close();
+                return;
+            }
+
+            _behindLinkingScreen = true;
+            _animator.Hide();
+        }
+
+        private void HandleScreenDismissed(AlmediaScreen screen, InAppScreenResult result)
+        {
+            if (_isClosing || !_behindLinkingScreen || screen != AlmediaScreen.Linking) return;
+            if (result?.Type != InAppScreenResultType.Cancelled || AlmediaLinkSDK.CurrentStatus != AlmediaStatus.Eligible)
+            {
+                Close();
+                return;
+            }
+
+            _behindLinkingScreen = false;
+            _animator.Show();
         }
 
         private void Close()
         {
             if (_isClosing) return;
             _isClosing = true;
-            _animator.Hide(DestroySelf);
+            if (_behindLinkingScreen)
+                Destroy(gameObject);
+            else
+                _animator.Hide(DestroySelf);
         }
 
         private void DestroySelf()

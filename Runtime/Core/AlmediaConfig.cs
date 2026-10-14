@@ -50,6 +50,9 @@ namespace AlmediaSDK
         /// <summary>AppsFlyer identifier. Runtime-only.</summary>
         public string AppsFlyerId { get; set; }
 
+        /// <summary>Tenjin analytics installation ID (<c>GetAnalyticsInstallationId()</c>). Runtime-only.</summary>
+        public string TenjinAnalyticsInstallationId { get; set; }
+
         /// <summary>Host app's internal user/player ID. Optional.</summary>
         public string AccountId { get; set; }
 
@@ -88,6 +91,21 @@ namespace AlmediaSDK
         /// re-initializes. The backend enforces the set, the SDK reacts to the status it returns.
         /// </summary>
         public HashSet<AlmediaFeature> DisabledFeatures { get; } = new HashSet<AlmediaFeature>();
+
+        /// <summary>
+        /// The backend to talk to, as an origin: <c>https://host</c> or <c>https://host:port</c>.
+        /// Null or empty means production. Set it in development builds only: a release build
+        /// that carries it logs an error on every <see cref="Almedia.Initialize"/>.
+        /// An invalid value fails initialization on a device and never falls back to production.
+        /// </summary>
+        public string BackendUrl { get; set; }
+
+        /// <summary>
+        /// iOS only. The origin that receives the IDFA once the player grants tracking. Without it
+        /// a custom backend never receives the IDFA. Same rules as <see cref="BackendUrl"/>, and
+        /// invalid without it.
+        /// </summary>
+        public string AttBackendUrl { get; set; }
 
         internal const int DefaultPollInterval = 30;
 
@@ -143,12 +161,14 @@ namespace AlmediaSDK
             result.Idfv = Idfv;
             result.AdjustDeviceId = AdjustDeviceId;
             result.AppsFlyerId = AppsFlyerId;
+            result.TenjinAnalyticsInstallationId = TenjinAnalyticsInstallationId;
             result.AccountId = AccountId;
             result.TrafficSource = TrafficSource;
             result.Meta1 = Meta1;
             result.Meta2 = Meta2;
             result.Meta3 = Meta3;
             result.Meta4 = Meta4;
+            result.Backend = AlmediaBackend.From(BackendUrl, AttBackendUrl);
 
             result.IsValid = !string.IsNullOrEmpty(result.IntegrationKey);
 

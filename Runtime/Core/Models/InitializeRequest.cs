@@ -14,6 +14,7 @@ namespace AlmediaSDK
         public string idfv;
         public string adid;
         public string afid;
+        public string tjid;
         public int notificationsPollingIntervalSec;
         public string trafficSource;
         public string meta1;
@@ -21,6 +22,8 @@ namespace AlmediaSDK
         public string meta3;
         public string meta4;
         public string[] disabledFeatures;
+        public string backendUrl;
+        public string attBackendUrl;
 
         public static InitializeRequest FromResolvedConfig(ResolvedAlmediaConfig config)
         {
@@ -35,6 +38,7 @@ namespace AlmediaSDK
                 idfv = config.Idfv ?? "",
                 adid = config.AdjustDeviceId ?? "",
                 afid = config.AppsFlyerId ?? "",
+                tjid = config.TenjinAnalyticsInstallationId ?? "",
                 notificationsPollingIntervalSec = config.NotificationsPollingIntervalSec,
                 trafficSource = config.TrafficSource ?? "",
                 meta1 = config.Meta1 ?? "",
@@ -43,7 +47,9 @@ namespace AlmediaSDK
                 meta4 = config.Meta4 ?? "",
                 disabledFeatures = string.IsNullOrEmpty(config.DisabledFeatures)
                     ? Array.Empty<string>()
-                    : config.DisabledFeatures.Split(',')
+                    : config.DisabledFeatures.Split(','),
+                backendUrl = config.Backend?.Url ?? "",
+                attBackendUrl = config.Backend?.AttUrl ?? ""
             };
         }
     }

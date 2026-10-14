@@ -320,11 +320,14 @@ Mutable POCO you build at runtime and pass to `Initialize`. Code-supplied values
 | `Idfv`                                             | `string`  | none (config only)                              |
 | `AdjustDeviceId`                                   | `string`  | none (config only)                              |
 | `AppsFlyerId`                                      | `string`  | none (config only)                              |
+| `TenjinAnalyticsInstallationId`                    | `string`  | none (config only)                              |
 | `AccountId`                                        | `string`  | none (config only)                              |
 | `TrafficSource`                                    | `string`  | none (config only)                              |
 | `Meta1` / `Meta2` / `Meta3` / `Meta4`              | `string`  | none (config only)                              |
 | `NotificationsPollingIntervalSec`                  | `int?`    | settings (`NotificationPollIntervalSeconds`) → 30 |
 | `DisabledFeatures`                                 | `HashSet<AlmediaFeature>` | settings ∪ config (never null; collection initializer) |
+| `BackendUrl`                                       | `string`  | none (config only); empty = production          |
+| `AttBackendUrl`                                    | `string`  | none (config only); iOS only                    |
 
 **Polling interval.** The backend can set the polling interval. `NotificationsPollingIntervalSec` applies when it sets none.
 
@@ -336,7 +339,7 @@ Mutable POCO you build at runtime and pass to `Initialize`. Code-supplied values
 
 **Android device identifiers.** The native SDK collects identifiers on its own where the platform allows, and mints its own install-scoped ALID, so initialization succeeds even when nothing can be collected and no identifier is passed - though where Almedia has not enabled it for the integration, that ALID is never stored and the SDK reports not-available. Supplying `Gaid`, `Asid`, `Oaid`, `AdjustDeviceId`, or `AppsFlyerId` improves attribution. The C# layer does not pre-validate identifiers. Identifiers that don't apply to the running platform are ignored, so they can be set unconditionally.
 
-**`AdjustDeviceId` / `AppsFlyerId` (both platforms).** When not supplied, the native layer on iOS and Android reads each one from what the Adjust or AppsFlyer SDK bundled in the app has stored, once the backend enables that identifier for the integration; a supplied value always wins. Requires the matching native binaries; older bundled plugins send only the supplied values.
+**`AdjustDeviceId` / `AppsFlyerId` / `TenjinAnalyticsInstallationId` (both platforms).** When not supplied, the native layer on iOS and Android reads each one from what the Adjust, AppsFlyer or Tenjin SDK bundled in the app has stored, once the backend enables that identifier for the integration; a supplied value always wins. Requires the matching native binaries; older bundled plugins send only the supplied values.
 
 **`TrafficSource`.** Where the user was originally acquired, sent as `sub3` on the linking URL. Pass your MMP's media source verbatim, e.g. `applovin_int` or `googleadwords_int`. The same rules as `Meta1`-`Meta4` below apply.
 
@@ -349,6 +352,8 @@ Mutable POCO you build at runtime and pass to `Initialize`. Code-supplied values
 - Changing a value re-initializes the session. Set them once, at startup.
 
 **`DisabledFeatures`.** The parts of the Link experience this game hides from the current player - see [`AlmediaFeature`](#almediafeature). Getter-only and never null; declare it with a collection initializer: `new AlmediaConfig { DisabledFeatures = { AlmediaFeature.Offer } }`. Joined with the settings asset's **Disabled Features** as a union: the asset is the floor, code adds and never removes. The set is sent once at `Initialize`; a different set on a later call re-initializes.
+
+**`BackendUrl` / `AttBackendUrl`.** The backend to talk to, as an origin: `https://host` or `https://host:port`. Null or empty means production. `AttBackendUrl` is iOS only: the host that receives the IDFA once the player grants tracking. Without it a custom backend never receives the IDFA. Set them in development builds only. A release build whose code contains the testing backend URL fails to build. A release build that still sets a backend logs an error on every `Initialize`, and a store build talks to production instead, with `OnErrorOccurred` reporting `InvalidConfiguration`. An invalid value logs a warning in the Editor and fails `Initialize` on a device with `InvalidConfiguration`; Android ignores `AttBackendUrl`. A different backend re-initializes. See [Test your integration](./testing.md).
 
 ---
 
@@ -1103,7 +1108,7 @@ The button also carries the **Link Popup** reference it opens on an eligible tap
 
 ### `LinkPopupController`
 
-The component on the `LinkPopup` prefab. Renders the modal account-linking popup; the CTA button starts linking, and the popup closes itself on the close button, when linking completes, and when the player can no longer link.
+The component on the `LinkPopup` prefab. Renders the modal account-linking popup; the CTA button starts linking, and the popup closes itself on the close button, when linking completes, and when the player can no longer link. While the in-app linking screen is open, the popup is hidden. It comes back when the player closes that screen without linking. Any other SDK screen closes the popup.
 
 Customize via Prefab Variant assigned on the `LinkButton` prefab's **Link Popup** field, and for [`ShowLink()`](#static-void-showlink) in **Almedia → Settings → Default UI Prefabs → Link Popup**. Text and colors are also directly editable in **Almedia → Settings → Link Popup Text**, applied while the popup's **Apply Host Settings** checkbox is ticked.
 

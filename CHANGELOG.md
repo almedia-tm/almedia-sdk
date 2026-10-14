@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.2] - 2026-10-13
+
+### Added
+- `BackendUrl` and `AttBackendUrl` on `AlmediaConfig`. Point a development build at Almedia's testing backend, so your test sessions stay out of production. Empty means production. A release build whose code still contains the testing backend URL fails to build, and one that still sets a backend logs an error on every initialize. See [Test your integration](./Documentation~/testing.md).
+- `TenjinAnalyticsInstallationId` on `AlmediaConfig`: the ID that Tenjin's `GetAnalyticsInstallationId()` returns, for games that use Tenjin as their MMP. When you do not pass it and Almedia has enabled it for your integration, the SDK reads the ID that the Tenjin SDK stored on the device. A value you pass always wins. The SDK also reports Tenjin on `session_start`, next to Adjust, AppsFlyer and Singular. iOS and Android have the same field: `tenjinAnalyticsInstallationId` and `tjid`.
+
+### Changed
+- On iOS, debug logging now shows the body of each successful response, with tokens and device identifiers masked, the same as on Android.
+
+### Fixed
+- Fixed the link popup staying open behind the in-app linking screen, where it showed through. The popup now hides while that screen is open. It comes back if the player closes the screen without linking.
+
 ## [1.3.1] - 2026-10-02
 
 ### Fixed

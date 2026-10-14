@@ -24,6 +24,7 @@ namespace AlmediaSDK
         public string Idfv { get; set; }
         public string AdjustDeviceId { get; set; }
         public string AppsFlyerId { get; set; }
+        public string TenjinAnalyticsInstallationId { get; set; }
         public string AccountId { get; set; }
         public string TrafficSource { get; set; }
         public string Meta1 { get; set; }
@@ -35,6 +36,8 @@ namespace AlmediaSDK
         // Canonical wire form (sorted, comma-joined), so the record's value equality
         // treats the same set in a different order as the same configuration.
         public string DisabledFeatures { get; set; }
+
+        public AlmediaBackend Backend { get; set; } = AlmediaBackend.Production;
 
 #if UNITY_EDITOR
         /// <summary>Per-value budget for <c>TrafficSource</c> and <c>Meta1</c>-<c>Meta4</c>.</summary>

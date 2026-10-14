@@ -25,7 +25,7 @@ The SDK has three layers:
 
 | Platform | Minimum version | Tested on    |
 |----------|------------------|--------------|
-| Unity    | 2022.3 LTS       | 2022.3.62f2, 6000.4.9f1  |
+| Unity    | 2022.3 LTS       | 2022.3.62f2, 6000.3.25f1, 6000.6.4f1 |
 | iOS      | 13.x             | 16.x, 17.x, 18.x, 26.x |
 | Android  | API 23           | API 25-37    |
 
@@ -83,6 +83,8 @@ If your game hides part of Link from some players - an A/B test of the entry poi
 Drop one of the `LinkButton` prefabs (`LinkButtonA`, `LinkButtonB`, `LinkButtonC`, or `LinkButtonD`) into a Canvas. It shows itself as a linking entry while the player is eligible and as a rewards entry once they are linked, and hides in every other case - including a linked player whose reward hub the backend has withdrawn, so it never offers a screen that would not open. When nothing has called `Initialize` and **Auto-Initialize From Prefabs** is on, the button does it itself - see [Initialize the SDK](./Documentation~/integration-guide.md#initialize-the-sdk).
 
 To start linking from your own button instead, call `Almedia.ShowLink()`. It shows the popup from **Almedia > Settings > Default UI Prefabs > Link Popup** to a player who can link, or starts linking directly while that slot is empty. It does nothing for other players. Show your button while `Almedia.Status` is `AlmediaStatus.Eligible`. See [Trigger linking programmatically](./Documentation~/integration-guide.md#trigger-linking-programmatically).
+
+To test on a device without touching production data, point development builds at Almedia's testing backend. See [Test your integration](./Documentation~/testing.md).
 
 ---
 

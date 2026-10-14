@@ -62,7 +62,7 @@ Internally, the native SDKs perform I/O off the main thread and post results bac
 
 | Item             | Minimum         | Tested on                |
 |------------------|-----------------|--------------------------|
-| Unity Editor     | 2022.3 LTS      | 2022.3.62f2, 6000.4.9f1              |
+| Unity Editor     | 2022.3 LTS      | 2022.3.62f2, 6000.3.25f1, 6000.6.4f1 |
 | iOS              | 13.0            | 16.x, 17.x, 18.x, 26.x               |
 | Android API      | 23              | API 27-37                |
 | TextMeshPro      | 3.0.6           | (declared as a dependency) |
@@ -217,7 +217,7 @@ Rules:
   ```
 - **Do not pass keys in code when they are already set in `AlmediaLinkSettings`.** The keys on `AlmediaConfig` are runtime overrides. A non-empty config value wins; an empty value falls back to the settings asset. The platform-correct key is selected automatically (`UNITY_IOS` → iOS key, `UNITY_ANDROID` → Android key).
 - **Pass an `AccountId` when available.** This is the host's internal player ID. It is opaque to Almedia; keep its format stable so the same player is recognized across sessions.
-- **Pass advertising identifiers when available.** All eight improve attribution: `AccountId`, `Idfa` (iOS), `Idfv` (iOS), `Gaid` (Android), `Asid` (Android App Set ID), `Oaid` (Huawei/CN), `AdjustDeviceId`, `AppsFlyerId`. On Android the native SDK collects identifiers on its own where the platform allows. Identifiers that don't apply to the current platform are ignored by the native SDK, so they can be set unconditionally. Pass empty strings or omit the rest when unavailable. `Idfv` is optional: when omitted the iOS SDK collects it automatically; supply a value only to override the device-issued one. `AdjustDeviceId` and `AppsFlyerId` are collected automatically too: when the Adjust or AppsFlyer SDK is in the app and the backend has enabled it for your integration, the native SDK reads the ID the vendor SDK has stored on the device, so passing them is only needed to override that value.
+- **Pass advertising identifiers when available.** All nine improve attribution: `AccountId`, `Idfa` (iOS), `Idfv` (iOS), `Gaid` (Android), `Asid` (Android App Set ID), `Oaid` (Huawei/CN), `AdjustDeviceId`, `AppsFlyerId`, `TenjinAnalyticsInstallationId`. On Android the native SDK collects identifiers on its own where the platform allows. Identifiers that don't apply to the current platform are ignored by the native SDK, so they can be set unconditionally. Pass empty strings or omit the rest when unavailable. `Idfv` is optional: when omitted the iOS SDK collects it automatically; supply a value only to override the device-issued one. `AdjustDeviceId`, `AppsFlyerId` and `TenjinAnalyticsInstallationId` are collected automatically too: when the Adjust, AppsFlyer or Tenjin SDK is in the app and the backend has enabled it for your integration, the native SDK reads the ID the vendor SDK has stored on the device, so passing them is only needed to override that value.
 
 `TrafficSource` is where the user was originally acquired, sent as `sub3` on the linking magic link only. Pass your MMP's media source verbatim, e.g. `applovin_int` or `googleadwords_int`. It follows the same rules as meta below.
 
@@ -232,7 +232,7 @@ When `Initialize` runs, the SDK merges any supplied `config` with `AlmediaLinkSe
 | Integration key                    | `config.IosIntegrationKey` / `config.AndroidIntegrationKey` → settings asset |
 | `NotificationsPollingIntervalSec`  | backend (if set) → config (if non-null) → settings → 30 |
 | `DisabledFeatures`                 | settings ∪ config - the asset is the floor, code adds and never removes |
-| `Gaid` / `Asid` / `Oaid` / `Idfa` / `Idfv` / `AdjustDeviceId` / `AppsFlyerId` / `AccountId` / `TrafficSource` / `Meta1`-`Meta4` | config only (no settings fallback) |
+| `Gaid` / `Asid` / `Oaid` / `Idfa` / `Idfv` / `AdjustDeviceId` / `AppsFlyerId` / `TenjinAnalyticsInstallationId` / `AccountId` / `TrafficSource` / `Meta1`-`Meta4` | config only (no settings fallback) |
 
 If neither the config nor the settings asset supplies an integration key, `Initialize` fires `OnErrorOccurred` with `AlmediaErrorCode.InvalidConfiguration` and does not contact the backend.
 
@@ -1009,6 +1009,12 @@ public class RewardsHudPlayModeTests
 ```
 
 The package README has a [shorter pointer to the same surface](../README.md#editor-testing); the API reference covers each method in the [Editor testing](./api-reference.md#editor-testing) section.
+
+---
+
+## Test your integration
+
+Point development builds at Almedia's testing backend, so test sessions and events stay out of production. Set `BackendUrl` on the config under `DEVELOPMENT_BUILD`, run a Development Build on a device, and watch its traffic in the testing console. Release builds keep talking to production, and a release build whose code still contains the testing backend URL fails to build. See [Test your integration](./testing.md).
 
 ---
 
