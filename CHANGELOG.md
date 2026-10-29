@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.3] - 2026-10-29
+
+### Fixed
+- On Android, the in-app screens now use hardware acceleration, which Unity turns off by default, so the reward hub and offer screens scroll more smoothly.
+
 ## [1.3.2] - 2026-10-13
 
 ### Added
