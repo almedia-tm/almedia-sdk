@@ -50,7 +50,9 @@ The SDK is split into three layers:
 
 ## Threading
 
-Every public event on `Almedia` - `OnStatusChanged`, `OnLinkCompleted`, `OnNotificationsReceived`, `OnInGameRewardGrantRequested`, `OnProgressUpdated`, `OnTaskCompleted`, `OnBalanceChanged`, `OnErrorOccurred`, `OnScreenPresented`, `OnScreenDismissed`, `OnLog` - fires on the **Unity main thread**. Handlers can touch `GetComponent`, `transform`, `UnityEngine.UI` elements, and any other Unity API directly.
+Call every SDK method on the **Unity main thread**. This includes `Initialize`, `ShowLink`, `StartLinking`, `ShowRewardHub` and `ShowOffer`. A call from another thread can fail. Callbacks from other SDKs, such as remote config, login or ads, can run on a background thread. Move to the main thread before you call the SDK from one.
+
+Every public event on `Almedia` - `OnStatusChanged`, `OnLinkCompleted`, `OnNotificationsReceived`, `OnInGameRewardGrantRequested`, `OnProgressUpdated`, `OnTaskCompleted`, `OnBalanceChanged`, `OnErrorOccurred`, `OnScreenPresented`, `OnScreenDismissed`, `OnLog` - fires on the **Unity main thread**. Handlers can touch `GetComponent`, `transform`, `UnityEngine.UI` elements, and any other Unity API directly. They can also call SDK methods.
 
 Internally, the native SDKs perform I/O off the main thread and post results back via `UnitySendMessage`, which Unity always delivers on the main thread. The editor mock bridge uses coroutines, which run on the main thread as well, so the threading contract is identical in the editor and on device.
 
@@ -158,7 +160,7 @@ The SDK instantiates the variant instead of the default. If you hand-author the 
 
 ### Level 3 - Build your own UI
 
-Disable the default notification UI in settings, then implement the visuals directly by subscribing to `OnNotificationsReceived`, `OnStatusChanged`, and `OnLinkCompleted`. The SDK still drives status, notification fetching, and linking; the host manages the UI flow.
+Disable the default notification UI in settings, then implement the visuals directly by subscribing to `OnNotificationsReceived`, `OnStatusChanged`, and `OnLinkCompleted`. The SDK still drives status, notification fetching, and linking; the host manages the UI flow. For the link popup, derive from `AlmediaLinkPopupController` instead; see [Your own popup design](#your-own-popup-design).
 
 Disabling the toggle also clears the notification prefab references to the bundled SDK prefabs, so those prefabs and their art stay out of your build. A prefab you assigned yourself stays assigned - and, like any asset your project references, still ships.
 
@@ -207,7 +209,7 @@ The advertising IDs and `AccountId` are runtime-only fields with no settings fal
 
 Rules:
 
-- **Call `Initialize` on the Unity main thread.** Callbacks from other SDKs, such as remote config or login, can run on a background thread. Move to the main thread before you call `Initialize` from one.
+- **Call `Initialize` on the Unity main thread**, like every SDK method. Callbacks from other SDKs, such as remote config or login, can run on a background thread. Move to the main thread before you call `Initialize` from one. See [Threading](#threading).
 - **Subscribe to `OnStatusChanged` before calling `Initialize`** if you want to observe every transition (including the first one). Subscriptions added later still receive subsequent transitions; the first one is the only one you can miss.
 - **For late-joining components, read `Almedia.Status` directly.** UI that spawns after init has already completed can recover the current state without waiting for the next change. The pattern is:
 
@@ -415,6 +417,15 @@ Call `ShowLink()` to start linking from your own button. It shows the link popup
 myLinkButton.onClick.AddListener(() => Almedia.ShowLink());
 ```
 
+To say where the popup opens from, pass a source. Your own popup reads it as `Source`, and the popup's events report it:
+
+```csharp
+Almedia.ShowLink(new AlmediaLinkSource("shop"));
+Almedia.ShowLink(new AlmediaLinkSource("level_end", payload: new LevelEnd(level)));
+```
+
+`source.Kind` tells a `LinkButton` tap from a `ShowLink` call, whatever the name. See [`AlmediaLinkSource`](./api-reference.md#almedialinksource).
+
 `ShowLink()` does nothing unless the status is `Eligible`, and nothing while a link popup is already open. Show your button only while the player can link:
 
 ```csharp
@@ -435,6 +446,34 @@ The popup comes from **Almedia → Settings → Default UI Prefabs → Link Popu
 #### Your own popup design
 
 To give the popup your own look, create a Prefab Variant of `LinkPopup` (see [Level 2 - Prefab Variants](#level-2---prefab-variants)), assign it to the **Link Popup** slot, and call `ShowLink()`.
+
+For a popup built from scratch, derive from `AlmediaLinkPopupController` on your own hierarchy:
+
+```csharp
+using AlmediaSDK;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class MyLinkPopup : AlmediaLinkPopupController
+{
+    [SerializeField] private GameObject _panel;
+    [SerializeField] private Button _linkButton;
+    [SerializeField] private Button _closeButton;
+
+    private void Awake()
+    {
+        _linkButton.onClick.AddListener(StartLinking);
+        _closeButton.onClick.AddListener(Dismiss);
+        _panel.SetActive(false);
+    }
+
+    protected override void ShowPopup() => _panel.SetActive(true);
+
+    protected override void HidePopup() => _panel.SetActive(false);
+}
+```
+
+Assign the prefab to the **Link Popup** slot, or to a `LinkButton`'s **Link Popup** field. The SDK instantiates it once as a root object, keeps it across scenes, and calls `ShowPopup` on every `ShowLink()`. Put a Canvas on the prefab's root object. `StartLinking` records the tap and starts linking; `Dismiss` records the close and hides the popup. Both do nothing while the popup is not open. `Source` says what opened the popup. The popup hides while the linking screen is open, comes back if the player cancels it, and closes when linking completes or the player can no longer link. The events on `AlmediaLinkPopupController` report every popup built on it; see the [API reference](./api-reference.md#almedialinkpopupcontroller). Code in an assembly definition references `AlmediaLink` for the base class and `AlmediaSDK` for `AlmediaLinkSource`.
 
 ### `OnLinkCompleted`
 

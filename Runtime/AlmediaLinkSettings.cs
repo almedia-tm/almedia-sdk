@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AlmediaLink.UI;
 using UnityEngine;
 using UnityEngine.Serialization;
+using AlmediaLinkPopupController = AlmediaSDK.AlmediaLinkPopupController;
 
 namespace AlmediaLink
 {
@@ -78,12 +79,12 @@ namespace AlmediaLink
         [FormerlySerializedAs("_activityOverlayOverride")]
         [SerializeField] private ActivityOverlayController _activityOverlayPrefab;
 
-        [Tooltip("The popup ShowLink() presents. A LinkButton opens the popup assigned on the button itself. A popup assigned here ships in every build. Clear it if you never call ShowLink().")]
-        [SerializeField] private LinkPopupController _linkPopupPrefab;
+        [Tooltip("The popup ShowLink() presents. Assign a Prefab Variant, or a prefab with your own AlmediaLinkPopupController, to customize it. A LinkButton opens the popup assigned on the button itself. A popup assigned here ships in every build. Clear it if you never call ShowLink().")]
+        [SerializeField] private AlmediaLinkPopupController _linkPopupPrefab;
 
         // 1.x compatibility: intentionally undrawn but still serialized and honored (wins over the
         // button's own popup reference). Not dead code.
-        [SerializeField] private LinkPopupController _linkPopupOverride;
+        [SerializeField] private AlmediaLinkPopupController _linkPopupOverride;
 
         // Bumped by AlmediaLinkMigrations after each one-shot upgrade pass over host assets.
         [SerializeField, HideInInspector] internal int _migrationVersion;
@@ -111,13 +112,13 @@ namespace AlmediaLink
         public NotificationCardController NotificationCardPrefab => _notificationCardPrefab;
         public ActivityOverlayController ActivityOverlayPrefab => _activityOverlayPrefab;
 
-        internal LinkPopupController LinkPopupPrefab => _linkPopupPrefab;
-        internal LinkPopupController LegacyLinkPopupOverride => _linkPopupOverride;
+        internal AlmediaLinkPopupController LinkPopupPrefab => _linkPopupPrefab;
+        internal AlmediaLinkPopupController LegacyLinkPopupOverride => _linkPopupOverride;
 
         #region Obsolete 1.x surface - compatibility shims
 
         [System.Obsolete("The popup is configured on the LinkButton prefab since 1.2.0. A value assigned here is still honored (it wins over the button's reference) but new integrations should assign the button's Link Popup field")]
-        public LinkPopupController LinkPopupOverride => _linkPopupOverride;
+        public LinkPopupController LinkPopupOverride => _linkPopupOverride as LinkPopupController;
 
         [System.Obsolete("Renamed to NotificationCardPrefab.")]
         public NotificationCardController NotificationCardOverride => _notificationCardPrefab;

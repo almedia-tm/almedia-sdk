@@ -7,7 +7,7 @@ namespace AlmediaSDK
 {
     public static class Almedia
     {
-        public static string Version => "1.3.3";
+        public static string Version => "1.3.4";
 
         /// <summary>
         /// The player's current status. Reads <see cref="AlmediaStatus.NotInitialized"/> until the
@@ -121,8 +121,8 @@ namespace AlmediaSDK
         /// <summary>Raised in the cases 1.x raises OnScreenAvailabilityChanged, after <see cref="LegacyStatusChanged"/>.</summary>
         internal static event Action<LegacyScreenAvailability> LegacyAvailabilityChanged;
 
-        /// <summary>Presents the link popup for <see cref="ShowLink"/>. Set by the UI assembly; survives the domain-reload reset.</summary>
-        internal static Action LinkPopupPresenter;
+        /// <summary>Presents the link popup for <see cref="ShowLink()"/>. Set by the UI assembly; survives the domain-reload reset.</summary>
+        internal static Action<AlmediaLinkSource> LinkPopupPresenter;
 
         internal static bool IsInitialized => _activeConfig != null;
 
@@ -298,15 +298,23 @@ namespace AlmediaSDK
         }
 
         /// <summary>
+        /// Presents the link popup to a player who can link, with <see cref="AlmediaLinkSource.ShowLink"/>
+        /// as the source. The same as <c>ShowLink(AlmediaLinkSource.ShowLink)</c>.
+        /// </summary>
+        public static void ShowLink() => ShowLink(AlmediaLinkSource.ShowLink);
+
+        /// <summary>
         /// Presents the link popup to a player who can link. The popup's button starts linking. The
         /// popup comes from the Link Popup slot in Almedia > Settings, or from the deprecated
         /// LinkPopupOverride while that slot is empty. With neither assigned, linking starts directly.
+        /// The popup reports <paramref name="source"/> through its events. A null source reads as
+        /// <see cref="AlmediaLinkSource.ShowLink"/>.
         /// </summary>
         /// <remarks>
         /// No-op (with a warning) until the SDK is ready. Does nothing, with a log, unless
         /// <see cref="Status"/> is <see cref="AlmediaStatus.Eligible"/>, and while a link popup is open.
         /// </remarks>
-        public static void ShowLink()
+        public static void ShowLink(AlmediaLinkSource source)
         {
             if (!GuardReady()) return;
             if (!(_status is AlmediaStatus.Eligible))
@@ -315,10 +323,11 @@ namespace AlmediaSDK
                 return;
             }
 
-            AlmediaLog.Info("ShowLink requested");
+            source = source ?? AlmediaLinkSource.ShowLink;
+            AlmediaLog.Info($"ShowLink requested (source: {source.Name}, kind: {source.Kind})");
             if (LinkPopupPresenter != null)
             {
-                LinkPopupPresenter();
+                LinkPopupPresenter(source);
                 return;
             }
 
@@ -328,8 +337,8 @@ namespace AlmediaSDK
 
         /// <summary>
         /// Opens the account-linking flow directly, without the link popup. Prefer
-        /// <see cref="ShowLink"/>. Call this from the button of a popup that does not use
-        /// LinkPopupController.
+        /// <see cref="ShowLink()"/>. A popup built on LinkPopupController starts linking and reports the
+        /// tap itself. Call this only from the button of a popup built without it.
         /// </summary>
         /// <remarks>No-op (with a warning) until the SDK is ready - the first
         /// <see cref="OnStatusChanged"/> must have fired.</remarks>
@@ -337,7 +346,7 @@ namespace AlmediaSDK
 
         /// <summary>
         /// Opens the account-linking flow directly and reports where it started from. Prefer
-        /// <see cref="ShowLink"/>. A null <paramref name="placement"/> reads as
+        /// <see cref="ShowLink()"/>. A null <paramref name="placement"/> reads as
         /// <see cref="AlmediaPlacementType.Popup"/>.
         /// </summary>
         /// <remarks>No-op (with a warning) until the SDK is ready - the first

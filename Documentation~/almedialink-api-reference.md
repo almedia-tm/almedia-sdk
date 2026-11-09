@@ -134,6 +134,8 @@ A snapshot is complete. Render the snapshot you get. Do not keep state from a pr
 
 ### Methods
 
+Call every method on the **Unity main thread**. A call from another thread can fail. See [Threading](./integration-guide.md#threading) in the integration guide.
+
 #### `static void Initialize(AlmediaLinkConfig config)`
 
 Boots the SDK. Merges `config` with `AlmediaLinkSettings`, instantiates the native bridge for the current platform, sends an `init` request to the backend, and starts the status lifecycle that resolves into a terminal `AlmediaStatus` (delivered via `OnStatusChanged` and reflected in `CurrentStatus`).

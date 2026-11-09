@@ -1,13 +1,14 @@
-using AlmediaLink.Models;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
+using AlmediaLinkPopupController = AlmediaSDK.AlmediaLinkPopupController;
+using AlmediaLinkSource = AlmediaSDK.AlmediaLinkSource;
 
 namespace AlmediaLink.UI
 {
     [DisallowMultipleComponent]
-    public class LinkPopupController : MonoBehaviour
+    public class LinkPopupController : AlmediaLinkPopupController
     {
         [Header("Animator")]
         [SerializeField] private PopupAnimator _animator;
@@ -40,26 +41,14 @@ namespace AlmediaLink.UI
         [Tooltip("Apply text and color values from AlmediaLinkSettings to this instance. Untick on a Prefab Variant you have fully authored yourself.")]
         [SerializeField] internal bool ApplyHostSettings = true;
 
-        private bool _isClosing;
-        private bool _behindLinkingScreen;
-
-        /// <summary>True while the popup is shown, and while it waits hidden behind the linking screen.</summary>
-        internal bool IsOpen => gameObject.activeSelf || _behindLinkingScreen;
-
         private void Awake()
         {
             if (!Application.isPlaying) return;
 
             if (_ctaButton != null)
-                _ctaButton.onClick.AddListener(HandleCTATap);
+                _ctaButton.onClick.AddListener(StartLinking);
             if (_closeButton != null)
-                _closeButton.onClick.AddListener(HandleCloseTap);
-
-            AlmediaLinkSDK.OnLinkCompleted += HandleLinkCompleted;
-            AlmediaLinkSDK.OnErrorOccurred += HandleErrorOccurred;
-            AlmediaLinkSDK.OnStatusChanged += HandleStatusChanged;
-            AlmediaLinkSDK.OnScreenPresented += HandleScreenPresented;
-            AlmediaLinkSDK.OnScreenDismissed += HandleScreenDismissed;
+                _closeButton.onClick.AddListener(Dismiss);
 
             gameObject.SetActive(false);
         }
@@ -75,92 +64,33 @@ namespace AlmediaLink.UI
             if (!Application.isPlaying) return;
 
             if (_ctaButton != null)
-                _ctaButton.onClick.RemoveListener(HandleCTATap);
+                _ctaButton.onClick.RemoveListener(StartLinking);
             if (_closeButton != null)
-                _closeButton.onClick.RemoveListener(HandleCloseTap);
-
-            AlmediaLinkSDK.OnLinkCompleted -= HandleLinkCompleted;
-            AlmediaLinkSDK.OnErrorOccurred -= HandleErrorOccurred;
-            AlmediaLinkSDK.OnStatusChanged -= HandleStatusChanged;
-            AlmediaLinkSDK.OnScreenPresented -= HandleScreenPresented;
-            AlmediaLinkSDK.OnScreenDismissed -= HandleScreenDismissed;
+                _closeButton.onClick.RemoveListener(Dismiss);
         }
 
-        public void Show()
+        /// <summary>
+        /// Opens this instance with <see cref="AlmediaLinkSource.ShowLink"/> as the source. Prefer
+        /// <see cref="AlmediaSDK.Almedia.ShowLink()"/>, which checks the player's status first.
+        /// </summary>
+        public void Show() => Show(null);
+
+        /// <summary>
+        /// Opens this instance and reports <paramref name="source"/> through the base class events. A null
+        /// source reads as <see cref="AlmediaLinkSource.ShowLink"/>. Prefer
+        /// <see cref="AlmediaSDK.Almedia.ShowLink(AlmediaLinkSource)"/>, which checks the player's status first.
+        /// </summary>
+        public void Show(AlmediaLinkSource source) => AlmediaLinkUIManager.ShowHostInstance(this, source);
+
+        protected override void ShowPopup()
         {
             ApplySettings();
-            AlmediaLinkSDK.TrackPopupShow();
             _animator.Show();
         }
 
-        private void HandleCTATap()
+        protected override void HidePopup()
         {
-            AlmediaLinkSDK.TrackPopupCtaClick();
-            AlmediaLinkSDK.StartLinking();
-        }
-
-        private void HandleCloseTap()
-        {
-            AlmediaLinkSDK.TrackPopupDismiss();
-            Close();
-        }
-
-        private void HandleLinkCompleted(string linkedAt)
-        {
-            Close();
-        }
-
-        private void HandleErrorOccurred(AlmediaError error)
-        {
-            if (error == null || error.Code != AlmediaErrorCode.LinkingFailed) return;
-            Close();
-        }
-
-        private void HandleStatusChanged(AlmediaStatus status)
-        {
-            if (status != AlmediaStatus.Eligible && (gameObject.activeInHierarchy || _behindLinkingScreen))
-                Close();
-        }
-
-        private void HandleScreenPresented(AlmediaScreen screen)
-        {
-            if (_isClosing || _behindLinkingScreen || !gameObject.activeInHierarchy) return;
-            if (screen != AlmediaScreen.Linking)
-            {
-                Close();
-                return;
-            }
-
-            _behindLinkingScreen = true;
             _animator.Hide();
-        }
-
-        private void HandleScreenDismissed(AlmediaScreen screen, InAppScreenResult result)
-        {
-            if (_isClosing || !_behindLinkingScreen || screen != AlmediaScreen.Linking) return;
-            if (result?.Type != InAppScreenResultType.Cancelled || AlmediaLinkSDK.CurrentStatus != AlmediaStatus.Eligible)
-            {
-                Close();
-                return;
-            }
-
-            _behindLinkingScreen = false;
-            _animator.Show();
-        }
-
-        private void Close()
-        {
-            if (_isClosing) return;
-            _isClosing = true;
-            if (_behindLinkingScreen)
-                Destroy(gameObject);
-            else
-                _animator.Hide(DestroySelf);
-        }
-
-        private void DestroySelf()
-        {
-            Destroy(gameObject);
         }
 
         private void ApplySettings()

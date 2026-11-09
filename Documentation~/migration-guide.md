@@ -61,7 +61,7 @@ Move one file at a time, and each file in one step:
 
 Both namespaces define `AlmediaStatus`, `AlmediaLogLevel` and other names. A file that imports both gets ambiguous names. A file that uses `AlmediaSDK` and still needs `AlmediaLinkSettings` writes it in full, as `AlmediaLink.AlmediaLinkSettings`.
 
-Code in an assembly definition needs a reference to `AlmediaSDK`. `AlmediaEditorMock` lives in the `AlmediaLink.Editor` assembly, so editor test assemblies keep that reference.
+Code in an assembly definition needs a reference to `AlmediaSDK`. `AlmediaEditorMock` lives in the `AlmediaLink.Editor` assembly, so editor test assemblies keep that reference. `AlmediaLinkPopupController` lives in the `AlmediaLink` assembly, so a popup built on it keeps that reference too.
 
 ---
 

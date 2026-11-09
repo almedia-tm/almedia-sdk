@@ -39,7 +39,7 @@ namespace AlmediaSDK
             public Disabled() { }
         }
 
-        /// <summary>The player can link. <see cref="Almedia.ShowLink"/> presents the link popup.</summary>
+        /// <summary>The player can link. <see cref="Almedia.ShowLink()"/> presents the link popup.</summary>
         public sealed class Eligible : AlmediaStatus
         {
             public Eligible() { }

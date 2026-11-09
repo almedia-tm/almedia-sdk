@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.4] - 2026-11-09
+
+### Added
+- Your own link popup. Derive from `AlmediaLinkPopupController`, supply the visuals, and assign the prefab to the **Link Popup** slot or to a `LinkButton`. The bundled `LinkPopup` is built on the same class. See [Your own popup design](./Documentation~/integration-guide.md#your-own-popup-design).
+    - **Events:** `AlmediaLinkPopupController.OnShown`, `OnCtaClicked` and `OnDismissed` fire for every popup built on the class, with the `AlmediaLinkSource` that opened it. Subscribe once; no popup reference is needed.
+    - **Source:** `Almedia.ShowLink(AlmediaLinkSource source)` says where the popup opens from, for example `new AlmediaLinkSource("shop")`. `source.Kind` tells a `LinkButton` tap from a `ShowLink` call, whatever the name. A `LinkButton` reports its **Source Name**, `link_button` by default.
+
+### Changed
+- The link popup is instantiated once and reused by every open, instead of a new instance each time.
+
+### Fixed
+- On iOS, a TestFlight build that points at the testing backend no longer switches to production when StoreKit fails to say how the app was installed: the SDK then checks the app's receipt. When it still cannot confirm a test build, the `InvalidConfiguration` error says so and includes StoreKit's error, instead of calling it an App Store build.
+
 ## [1.3.3] - 2026-10-29
 
 ### Fixed

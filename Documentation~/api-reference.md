@@ -32,6 +32,8 @@ The SDK is versioned. The current release is reflected in `Almedia.Version` and 
   - [`AlmediaTaskCompletion`](#almediataskcompletion)
   - [`AlmediaBalanceChange`](#almediabalancechange)
   - [`AlmediaPlacementType`](#almediaplacementtype)
+  - [`AlmediaLinkSource`](#almedialinksource)
+  - [`AlmediaLinkSourceKind`](#almedialinksourcekind)
   - [`AlmediaScreen`](#almediascreen)
   - [`AlmediaFeature`](#almediafeature)
   - [`AlmediaInAppScreenResult`](#almediainappscreenresult)
@@ -39,6 +41,7 @@ The SDK is versioned. The current release is reflected in `Almedia.Version` and 
 - [Editor testing](#editor-testing)
   - [`AlmediaEditorMock`](#almediaeditormock)
 - UI components
+  - [`AlmediaLinkPopupController`](#almedialinkpopupcontroller)
   - [`LinkButtonController`](#linkbuttoncontroller)
   - [`LinkPopupController`](#linkpopupcontroller)
   - [`NotificationCardController`](#notificationcardcontroller)
@@ -53,7 +56,7 @@ The SDK is versioned. The current release is reflected in `Almedia.Version` and 
 
 | Namespace            | Contents |
 |----------------------|----------|
-| `AlmediaSDK`         | The static `Almedia` entry point, `AlmediaConfig`, and the status, error, notification, progress, placement, feature, in-app screen result and log level types. |
+| `AlmediaSDK`         | The static `Almedia` entry point, `AlmediaConfig`, the status, error, notification, progress, placement, feature, in-app screen result and log level types, the link popup source types, and the `AlmediaLinkPopupController` base class for your own popup. |
 | `AlmediaSDK.Editor.Testing` | `AlmediaEditorMock` - editor-only test hook for driving non-happy paths. Excluded from player builds. |
 | `AlmediaLink`        | `AlmediaLinkSettings`, and the `AlmediaLink` API documented in the [AlmediaLink API reference](./almedialink-api-reference.md). |
 | `AlmediaLink.UI`     | UI controllers. |
@@ -108,6 +111,8 @@ A snapshot is complete. Render the snapshot you get. Do not keep state from a pr
 
 ### Methods
 
+Call every method on the **Unity main thread**. A call from another thread can fail. See [Threading](./integration-guide.md#threading) in the integration guide.
+
 #### `static void Initialize(AlmediaConfig config)`
 
 Boots the SDK. Merges `config` with `AlmediaLinkSettings`, instantiates the native bridge for the current platform, sends an `init` request to the backend, and starts the status lifecycle that resolves into the first status (delivered via `OnStatusChanged` and reflected in `Status`). A `null` config reads as an empty `AlmediaConfig`.
@@ -135,11 +140,17 @@ Subscribe to `OnErrorOccurred` **before** calling `Initialize` to receive synchr
 
 #### `static void ShowLink()`
 
+Shows the link popup to a player who can link, with [`AlmediaLinkSource.ShowLink`](#almedialinksource) as the source. The same as `ShowLink(AlmediaLinkSource.ShowLink)`.
+
+#### `static void ShowLink(AlmediaLinkSource source)`
+
 Shows the link popup to a player who can link. The popup's CTA button starts linking. The popup reports the same analytics as when the `LinkButton` prefab opens it. This is the recommended way to start linking from your own button.
 
-The popup comes from **Almedia → Settings → Default UI Prefabs → Link Popup** (see [`AlmediaLinkSettings`](#default-ui-prefabs)). With that slot empty, `ShowLink()` shows the popup assigned to the deprecated `LinkPopupOverride`. With neither assigned, it starts linking directly and logs a warning through `OnLog` once.
+`source` says where the popup opens from. The popup reads it as `Source`, and the [`AlmediaLinkPopupController`](#almedialinkpopupcontroller) events carry it. A `null` source reads as `AlmediaLinkSource.ShowLink`. See [`AlmediaLinkSource`](#almedialinksource).
 
-A no-op (with a warning) until the SDK is ready. After that, it does nothing, with a log, unless `Status` is `AlmediaStatus.Eligible`. It also does nothing while a link popup is already open. A popup that fails to open, for example a Prefab Variant with a missing reference, is removed and reported through `OnLog` at `Error`.
+The popup comes from **Almedia → Settings → Default UI Prefabs → Link Popup** (see [`AlmediaLinkSettings`](#default-ui-prefabs)). With that slot empty, it shows the popup assigned to the deprecated `LinkPopupOverride`. With neither assigned, it starts linking directly and logs a warning through `OnLog` once. No popup event fires in that case.
+
+A no-op (with a warning) until the SDK is ready. After that, it does nothing, with a log, unless `Status` is `AlmediaStatus.Eligible`. It also does nothing while a link popup is already open. A popup that fails to open, for example a Prefab Variant with a missing reference, is removed and reported through `OnLog` at `Error`. It counts no show and fires no event.
 
 #### `static void StartLinking()`
 
@@ -149,7 +160,7 @@ Opens the native account-linking flow directly, without the popup, and reports t
 
 Opens the native account-linking flow directly, without the popup. The `placement` value is analytics metadata - it tells the backend which UI surface drove the call. See [`AlmediaPlacementType`](#almediaplacementtype). A `null` placement reads as `Popup`.
 
-**In the bundled integration, host code does not call this directly.** The `LinkPopup`'s CTA button starts linking for you, whether the popup came from the `LinkButton` prefab or from [`ShowLink()`](#static-void-showlink). For your own popup design, assign a Prefab Variant of `LinkPopup` to the **Link Popup** slot and call `ShowLink()`. Call `StartLinking` yourself only from the CTA of a popup built without `LinkPopupController`.
+**In the bundled integration, host code does not call this directly.** The `LinkPopup`'s CTA button starts linking for you, whether the popup came from the `LinkButton` prefab or from [`ShowLink()`](#static-void-showlink). A popup built on [`AlmediaLinkPopupController`](#almedialinkpopupcontroller), including a Prefab Variant of `LinkPopup`, starts linking from its own `StartLinking` and reports the tap. Call `Almedia.StartLinking` yourself only from a popup built without it. Such a popup reports no show, tap or dismiss.
 
 A no-op (with a warning logged via `OnLog`) if `Initialize` has not been called, or if the SDK has not yet resolved its first status (the first `OnStatusChanged` has not fired).
 
@@ -408,7 +419,7 @@ One toggle per [`AlmediaFeature`](#almediafeature), drawn from the SDK's feature
 
 | Property                  | Type                          | Description |
 |---------------------------|-------------------------------|-------------|
-| Link Popup                | `LinkPopupController`         | The popup [`ShowLink()`](#static-void-showlink) presents. The settings asset the SDK creates on first import has the bundled prefab here. An existing one keeps the slot empty after the upgrade. A popup assigned here ships in every build. Settings slot only, with no public accessor. |
+| Link Popup                | `AlmediaLinkPopupController`  | The popup [`ShowLink()`](#static-void-showlink) presents. The settings asset the SDK creates on first import has the bundled prefab here. An existing one keeps the slot empty after the upgrade. Assign a Prefab Variant, or a prefab with your own derived controller, to customize. A popup assigned here ships in every build. Settings slot only, with no public accessor. |
 | `NotificationCardPrefab`  | `NotificationCardController`  | The notification card the SDK instantiates when notifications arrive. Pre-filled with the bundled prefab; assign a Prefab Variant to customize. |
 | `ActivityOverlayPrefab`   | `ActivityOverlayController`   | The notification list overlay opened from a stacked card. Same semantics. |
 
@@ -887,6 +898,38 @@ Behaviorally identical - the difference is reflected only in analytics.
 
 ---
 
+### `AlmediaLinkSource`
+
+Namespace: `AlmediaSDK` · sealed class
+
+Where a link popup open came from. [`ShowLink(source)`](#static-void-showlinkalmedialinksource-source) takes it, the popup reads it as `Source`, and the [`AlmediaLinkPopupController`](#almedialinkpopupcontroller) events carry it.
+
+| Member | Description |
+|---|---|
+| `AlmediaLinkSource(string name)` | A source of kind `ShowLink`. A null or empty name reads as `custom`. |
+| `AlmediaLinkSource(string name, object payload)` | The same, with an object of yours attached. |
+| `static AlmediaLinkSource ShowLink` | The source of `ShowLink()` called without an argument. Name `show_link`, kind `ShowLink`. |
+| `string Name` | The label as given. Never null or empty. |
+| `AlmediaLinkSourceKind Kind` | What opened the popup. The SDK sets it; a source you create always reads `ShowLink`. |
+| `object Payload` | The object you attached, or null. The SDK never reads, logs or sends it. |
+
+Two sources are equal, with `==` and `Equals`, when their `Kind` and `Name` are equal. The payload takes no part. `ToString()` returns the name.
+
+---
+
+### `AlmediaLinkSourceKind`
+
+Namespace: `AlmediaSDK` · sealed class
+
+What opened the link popup, read from [`AlmediaLinkSource.Kind`](#almedialinksource). Only the static members below exist. Compare them with `==`. `ToString()` returns the member name.
+
+| Member       | Meaning |
+|--------------|---------|
+| `ShowLink`   | The game called `ShowLink()` or `ShowLink(source)`, whatever the name. |
+| `LinkButton` | The player tapped a `LinkButton` prefab. The name is the button's **Source Name**, `link_button` by default. |
+
+---
+
 ### `AlmediaScreen`
 
 Namespace: `AlmediaSDK` · sealed class
@@ -1088,7 +1131,30 @@ Stops any pending auto-simulate coroutine. Mostly relevant for tests that want t
 
 ## UI components
 
-All UI controllers live in `AlmediaLink.UI`. The SDK ships ready-to-drop prefabs in `Packages/com.almedia.sdk/Runtime/Prefabs/`; host code never needs to instantiate or call into the controllers directly. Customize by editing a prefab or creating a Prefab Variant. The popup, card, and overlay prefabs each carry an **Apply Host Settings** checkbox controlling whether the text/colors from **Almedia → Settings** are applied to them at runtime - untick it on a fully hand-authored variant.
+The bundled UI controllers live in `AlmediaLink.UI`. The `AlmediaLinkPopupController` base class the popup is built on is in the `AlmediaSDK` namespace and ships in the `AlmediaLink` assembly. The SDK ships ready-to-drop prefabs in `Packages/com.almedia.sdk/Runtime/Prefabs/`; host code never needs to instantiate or call into the controllers directly. Customize by editing a prefab, creating a Prefab Variant, or deriving your popup from the base class. The popup, card, and overlay prefabs each carry an **Apply Host Settings** checkbox controlling whether the text/colors from **Almedia → Settings** are applied to them at runtime - untick it on a fully hand-authored variant.
+
+---
+
+### `AlmediaLinkPopupController`
+
+Namespace: `AlmediaSDK` · assembly `AlmediaLink` · abstract `MonoBehaviour`
+
+The base of the component that shows the link popup. [`ShowLink()`](#static-void-showlink) and the `LinkButton` prefab instantiate the assigned prefab once, as a root object kept across scenes, and open it on every call. `LinkPopupController` derives from it, and so can your own popup; see [Your own popup design](./integration-guide.md#your-own-popup-design).
+
+| Member | Description |
+|---|---|
+| `static event Action<AlmediaLinkSource> OnShown` | A popup opened. Once per open, after `ShowPopup` returned. The return after the player cancels the linking screen does not fire it. |
+| `static event Action<AlmediaLinkSource> OnCtaClicked` | The player tapped the popup's button. Linking starts right after. Can fire more than once per open. |
+| `static event Action<AlmediaLinkSource> OnDismissed` | The player closed the popup without linking. |
+| `protected AlmediaLinkSource Source` | What opened the popup. Set before `ShowPopup` runs, null while the popup is closed. |
+| `protected abstract void ShowPopup()` | Shows the visuals. Called when the popup opens, and again when the player closes the linking screen without linking. |
+| `protected abstract void HidePopup()` | Hides the visuals. Called when the popup closes, and when the linking screen covers it. |
+| `protected void StartLinking()` | Call from the popup's button. Records the tap, raises `OnCtaClicked` and starts linking with the `Popup` placement. |
+| `protected void Dismiss()` | Call from the close button. Records the dismiss, raises `OnDismissed` and hides the popup. |
+
+The events fire for every popup built on this class: the bundled `LinkPopup`, a Prefab Variant of it and your own subclass. Subscribe once at app start; no popup reference is needed. Each event fires at the moment the SDK records the same action, so your counts and Almedia's agree. The events are cleared on domain reload, not by `Initialize`. A subscriber that throws is reported through `OnLog` at `Error` and the others still run.
+
+The SDK closes the popup when linking completes or fails, when the player can no longer link, and when another SDK screen opens. None of those raises an event. `StartLinking` and `Dismiss` do nothing while the popup is not open, while it waits behind the linking screen, and inside `ShowPopup`. An exception thrown by `ShowPopup` while the popup opens is logged through `OnLog` at `Error` and the popup is removed. It counts no show and raises no event. The next `ShowLink()` instantiates it again.
 
 ---
 
@@ -1102,13 +1168,15 @@ Drop one of the four `LinkButton` variants (`LinkButtonA`-`LinkButtonD`) into yo
 
 To reproduce the behaviour on a button of your own, call [`ShowLink()`](#static-void-showlink) while the status is `Eligible`, and [`ShowRewardHub()`](#static-void-showrewardhub) while the status is `Linked` with `CanShowRewardHub`. `ShowLink()` shows the popup from the settings' **Link Popup** slot, not the button's reference.
 
-The button also carries the **Link Popup** reference it opens on an eligible tap. Assign a Prefab Variant there to customize the popup; with the field emptied, an eligible tap starts linking directly (with a one-time warning).
+The button also carries the **Link Popup** reference it opens on an eligible tap. Assign a Prefab Variant, or a prefab with your own [`AlmediaLinkPopupController`](#almedialinkpopupcontroller), to customize the popup; with the field emptied, an eligible tap starts linking directly (with a one-time warning). **Source Name**, `link_button` by default, is the name the popup opened by this button reports through the `AlmediaLinkPopupController` events, with kind `LinkButton`. Give each button its own name to tell them apart.
 
 ---
 
 ### `LinkPopupController`
 
-The component on the `LinkPopup` prefab. Renders the modal account-linking popup; the CTA button starts linking, and the popup closes itself on the close button, when linking completes, and when the player can no longer link. While the in-app linking screen is open, the popup is hidden. It comes back when the player closes that screen without linking. Any other SDK screen closes the popup.
+The component on the `LinkPopup` prefab, derived from [`AlmediaLinkPopupController`](#almedialinkpopupcontroller). Renders the modal account-linking popup; the CTA button starts linking, and the popup closes itself on the close button, when linking completes, and when the player can no longer link. While the in-app linking screen is open, the popup is hidden. It comes back when the player closes that screen without linking. Any other SDK screen closes the popup. The SDK instantiates the prefab once and reuses the instance.
+
+`Show()` and `Show(AlmediaLinkSource source)` open an instance you created yourself and report it through the base class events, with `AlmediaLinkSource.ShowLink` when no source is given. A call on an instance that is already open does nothing. Another link popup that is open closes first, without a dismiss; one popup is open at a time. Prefer [`ShowLink()`](#static-void-showlink), which also checks the player's status first.
 
 Customize via Prefab Variant assigned on the `LinkButton` prefab's **Link Popup** field, and for [`ShowLink()`](#static-void-showlink) in **Almedia → Settings → Default UI Prefabs → Link Popup**. Text and colors are also directly editable in **Almedia → Settings → Link Popup Text**, applied while the popup's **Apply Host Settings** checkbox is ticked.
 
@@ -1166,8 +1234,8 @@ Android dependencies are provided automatically by the `AlmediaSDK.androidlib` s
 
 | Asmdef                          | Includes platforms       | Auto-referenced | Notes |
 |---------------------------------|---------------------------|:---------------:|-------|
-| `AlmediaSDK.asmdef`             | Any                       | yes             | `Almedia` and every type in the `AlmediaSDK` namespace. `includePlatforms` is empty, so the runtime assembly compiles on every player target. Platform support is gated at runtime by native bridge selection: only iOS and Android are supported, and other targets raise `OnErrorOccurred` with `InvalidConfiguration` at `Initialize`. Root namespace: `AlmediaSDK`. |
-| `AlmediaLink.asmdef`            | Any                       | yes             | `AlmediaLinkSettings`, the UI components and the `AlmediaLink` API. References `AlmediaSDK`. Root namespace: `AlmediaLink`. |
+| `AlmediaSDK.asmdef`             | Any                       | yes             | `Almedia` and every type in the `AlmediaSDK` namespace except `AlmediaLinkPopupController`. `includePlatforms` is empty, so the runtime assembly compiles on every player target. Platform support is gated at runtime by native bridge selection: only iOS and Android are supported, and other targets raise `OnErrorOccurred` with `InvalidConfiguration` at `Initialize`. Root namespace: `AlmediaSDK`. |
+| `AlmediaLink.asmdef`            | Any                       | yes             | `AlmediaLinkSettings`, the UI components, `AlmediaLinkPopupController` and the `AlmediaLink` API. References `AlmediaSDK`. Root namespace: `AlmediaLink`. |
 | `AlmediaLink.Editor.asmdef`     | Editor                    | yes             | Editor-only tooling and `AlmediaEditorMock`. Root namespace: `AlmediaLink.Editor`. References the runtime asmdefs. |
 
-If you use Assembly Definition References yourself, add a reference to `AlmediaSDK`. Add `AlmediaLink` only for code that uses `AlmediaLinkSettings` or the UI components, and `AlmediaLink.Editor` only for editor test code that uses `AlmediaEditorMock`.
+If you use Assembly Definition References yourself, add a reference to `AlmediaSDK`. Add `AlmediaLink` only for code that uses `AlmediaLinkSettings`, the UI components or `AlmediaLinkPopupController` and its events, and `AlmediaLink.Editor` only for editor test code that uses `AlmediaEditorMock`.

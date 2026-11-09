@@ -74,7 +74,7 @@ public class AlmediaBootstrap : MonoBehaviour
 
 > The snippet above is the minimum bootstrap. For the full event surface see [Initialize the SDK](./Documentation~/integration-guide.md#initialize-the-sdk) in the integration guide.
 
-All SDK events fire on the Unity main thread. See the [integration guide](./Documentation~/integration-guide.md#threading) for details.
+Call every SDK method on the Unity main thread. All SDK events fire on the main thread too. See the [integration guide](./Documentation~/integration-guide.md#threading) for details.
 
 The native SDK collects device identifiers on its own. Pass IDs to cover the devices where it cannot, and use the same config to supply `AccountId` and the other identifiers when available.
 
@@ -94,7 +94,7 @@ Three levels of depth, from least to most invasive. Full detail in [Customize th
 
 1. **Text and colors** - edit the strings and primary colors in **Almedia > Settings**. The built-in prefabs read the settings asset at runtime, so this works on a read-only UPM install.
 2. **Prefab Variants** - create a Prefab Variant of any bundled UI prefab for full re-skin / layout control. Assign a popup variant on the LinkButton's **Link Popup** field. Assign the popup variant for `ShowLink()`, and card and overlay variants, under **Almedia > Settings > Default UI Prefabs**.
-3. **Bring your own UI** - disable the default notification UI in settings and subscribe to `OnNotificationsReceived`, `OnStatusChanged`, and `OnLinkCompleted` to render your own visuals. The SDK still drives status, polling, and linking.
+3. **Bring your own UI** - disable the default notification UI in settings and subscribe to `OnNotificationsReceived`, `OnStatusChanged`, and `OnLinkCompleted` to render your own visuals. For the link popup, derive from `AlmediaLinkPopupController` and assign your prefab in the slot; it keeps the bundled popup's tracking. The SDK still drives status, polling, and linking. See [Your own popup design](./Documentation~/integration-guide.md#your-own-popup-design).
 
 You also render a linked player's progress. `Almedia.Progress` holds the latest snapshot: balance, lifetime earnings, pending and completed tasks, and username. `OnProgressUpdated` fires when a newer snapshot arrives. `OnTaskCompleted` and `OnBalanceChanged` report events for celebrations. Money arrives as exact `decimal` values in the player's currency and in USD. The SDK does not format money. See [Progress and rewards](./Documentation~/integration-guide.md#progress-and-rewards).
 

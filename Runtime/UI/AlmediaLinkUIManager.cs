@@ -1,7 +1,12 @@
+using System;
 using System.Collections.Generic;
 using AlmediaLink.Models;
 using UnityEngine;
 using UnityEngine.UI;
+using AlmediaLinkPopupController = AlmediaSDK.AlmediaLinkPopupController;
+using AlmediaLinkSource = AlmediaSDK.AlmediaLinkSource;
+using NewApi = AlmediaSDK.Almedia;
+using Object = UnityEngine.Object;
 
 namespace AlmediaLink.UI
 {
@@ -14,49 +19,72 @@ namespace AlmediaLink.UI
         private static List<AlmediaNotification> _lastNotifications;
         private static bool _initialized;
         private static readonly HashSet<string> _missingPrefabsLogged = new HashSet<string>();
-        private static LinkPopupController _openPopup;
+        private static AlmediaLinkPopupController _popup;
+        private static AlmediaLinkPopupController _popupPrefab;
         private static bool _missingLinkPopupWarned;
+        private static bool _popupWithoutCanvasWarned;
 
         internal static void Initialize()
         {
             if (_initialized) return;
             AlmediaLinkSDK.OnNotificationsReceived += HandleNotifications;
             NotificationCardController.OnStackedCardTapped += HandleStackedCardTapped;
+            NewApi.OnStatusChanged += HandleStatusChanged;
+            NewApi.OnLinkCompleted += HandleLinkCompleted;
+            NewApi.OnErrorOccurred += HandleErrorOccurred;
+            NewApi.OnScreenPresented += HandleScreenPresented;
+            NewApi.OnScreenDismissed += HandleScreenDismissed;
             _initialized = true;
         }
-        
-        internal static void ShowLinkPopup(LinkPopupController prefab)
+
+        #region Link popup
+
+        internal static void ShowLinkPopup(AlmediaLinkPopupController prefab, AlmediaLinkSource source)
         {
             if (prefab == null) return; // the caller owns the fallback and the warning
+            Initialize();
             if (PopupAlreadyOpen()) return;
 
-            _openPopup = Object.Instantiate(prefab);
-            Object.DontDestroyOnLoad(_openPopup.gameObject);
+            if (_popup != null && _popupPrefab != prefab)
+                DropPopup();
+            if (_popup == null)
+            {
+                WarnIfNoCanvas(prefab);
+                _popup = Object.Instantiate(prefab);
+                Object.DontDestroyOnLoad(_popup.gameObject);
+                _popupPrefab = prefab;
+            }
+
             try
             {
-                _openPopup.Show();
+                _popup.Present(source);
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
-                _openPopup.gameObject.SetActive(false);
-                Object.Destroy(_openPopup.gameObject);
-                _openPopup = null;
+                var failed = _popup;
+                _popup = null;
+                _popupPrefab = null;
+                if (failed != null)
+                {
+                    failed.gameObject.SetActive(false);
+                    Object.Destroy(failed.gameObject);
+                }
                 AlmediaLog.Error($"Link popup '{prefab.name}' failed to open: {e.GetType().Name}: {e.Message}");
             }
         }
 
-        internal static void ShowConfiguredLinkPopup()
+        internal static void ShowConfiguredLinkPopup(AlmediaLinkSource source)
         {
             if (PopupAlreadyOpen()) return;
 
             var settings = AlmediaLinkSettings.Load();
-            LinkPopupController popup = null;
+            AlmediaLinkPopupController popup = null;
             if (settings != null)
                 popup = settings.LinkPopupPrefab != null ? settings.LinkPopupPrefab : settings.LegacyLinkPopupOverride;
 
             if (popup != null)
             {
-                ShowLinkPopup(popup);
+                ShowLinkPopup(popup, source);
                 return;
             }
 
@@ -70,21 +98,99 @@ namespace AlmediaLink.UI
             AlmediaLinkSDK.StartLinking(PlacementType.Popup);
         }
 
+        // An instance the host created itself and opens through LinkPopupController.Show().
+        internal static void ShowHostInstance(AlmediaLinkPopupController popup, AlmediaLinkSource source)
+        {
+            try
+            {
+                Initialize();
+                if (popup.IsOpen)
+                {
+                    AlmediaLog.Debug("A link popup is already open.");
+                    return;
+                }
+                if (_popup != popup)
+                {
+                    LivePopup()?.Close();
+                    DropPopup();
+                    _popup = popup;
+                    _popupPrefab = null;
+                }
+                popup.Present(source);
+            }
+            catch (Exception e)
+            {
+                if (_popup == popup) _popup = null;
+                AlmediaLog.Error($"Link popup '{popup.name}' failed to open: {e.GetType().Name}: {e.Message}");
+            }
+        }
+
+        // _popupPrefab is null for a host-owned instance, which is released but never destroyed here.
+        private static void DropPopup()
+        {
+            if (_popup != null && _popupPrefab != null)
+                Object.Destroy(_popup.gameObject);
+            _popup = null;
+            _popupPrefab = null;
+        }
+
+        private static void WarnIfNoCanvas(AlmediaLinkPopupController prefab)
+        {
+            if (_popupWithoutCanvasWarned || prefab.GetComponent<Canvas>() != null) return;
+            _popupWithoutCanvasWarned = true;
+            AlmediaLog.Warning($"Link popup '{prefab.name}' has no Canvas on its root object, so it cannot render. Put a Canvas on the prefab's root.");
+        }
+
         private static bool PopupAlreadyOpen()
         {
-            if (_openPopup == null || !_openPopup.IsOpen) return false;
+            var popup = LivePopup();
+            if (popup == null || !popup.IsOpen) return false;
             AlmediaLog.Debug("A link popup is already open.");
             return true;
         }
+
+        // Null once the host has destroyed the instance.
+        private static AlmediaLinkPopupController LivePopup()
+        {
+            if (_popup == null)
+            {
+                _popup = null;
+                _popupPrefab = null;
+            }
+            return _popup;
+        }
+
+        private static void HandleStatusChanged(AlmediaSDK.AlmediaStatus status) => LivePopup()?.HandleStatusChanged(status);
+
+        private static void HandleLinkCompleted(string linkedAt) => LivePopup()?.Close();
+
+        private static void HandleErrorOccurred(AlmediaSDK.AlmediaError error)
+        {
+            if (error == null || error.Code != AlmediaSDK.AlmediaErrorCode.LinkingFailed) return;
+            LivePopup()?.Close();
+        }
+
+        private static void HandleScreenPresented(AlmediaSDK.AlmediaScreen screen) => LivePopup()?.HandleScreenPresented(screen);
+
+        private static void HandleScreenDismissed(AlmediaSDK.AlmediaScreen screen, AlmediaSDK.AlmediaInAppScreenResult result)
+            => LivePopup()?.HandleScreenDismissed(screen, result);
+
+        #endregion
 
         internal static void Cleanup()
         {
             AlmediaLinkSDK.OnNotificationsReceived -= HandleNotifications;
             NotificationCardController.OnStackedCardTapped -= HandleStackedCardTapped;
+            NewApi.OnStatusChanged -= HandleStatusChanged;
+            NewApi.OnLinkCompleted -= HandleLinkCompleted;
+            NewApi.OnErrorOccurred -= HandleErrorOccurred;
+            NewApi.OnScreenPresented -= HandleScreenPresented;
+            NewApi.OnScreenDismissed -= HandleScreenDismissed;
             _initialized = false;
             _lastNotifications = null;
             _missingPrefabsLogged.Clear();
             _missingLinkPopupWarned = false;
+            _popupWithoutCanvasWarned = false;
 
             if (_notificationCard != null)
             {
@@ -94,6 +200,8 @@ namespace AlmediaLink.UI
             }
             _notificationCard = null;
             _activityOverlay = null; // destroyed with canvas (child)
+
+            DropPopup();
         }
 
         private static void HandleNotifications(List<AlmediaNotification> notifications)

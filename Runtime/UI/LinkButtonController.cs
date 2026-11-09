@@ -2,6 +2,9 @@ using AlmediaLink.Models;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using AlmediaLinkPopupController = AlmediaSDK.AlmediaLinkPopupController;
+using AlmediaLinkSource = AlmediaSDK.AlmediaLinkSource;
+using AlmediaLinkSourceKind = AlmediaSDK.AlmediaLinkSourceKind;
 
 namespace AlmediaLink.UI
 {
@@ -53,8 +56,11 @@ namespace AlmediaLink.UI
         [SerializeField] private VisualState _linked = new VisualState();
 
         [Header("Link popup")]
-        [Tooltip("The popup an eligible player's tap opens. Assign a Prefab Variant to customize it; leave empty to start linking directly on tap.")]
-        [SerializeField] private LinkPopupController _linkPopup;
+        [Tooltip("The popup an eligible player's tap opens. Assign a Prefab Variant, or a prefab with your own AlmediaLinkPopupController, to customize it; leave empty to start linking directly on tap.")]
+        [SerializeField] private AlmediaLinkPopupController _linkPopup;
+
+        [Tooltip("The name the popup opened by this button reports as its source, through the LinkPopupController events. Give each button its own name, for example home_screen or shop.")]
+        [SerializeField] private string _sourceName = "link_button";
 
         private PromoState? _lastPromoState;
         private bool _missingLinkedVisualWarned;
@@ -167,7 +173,8 @@ namespace AlmediaLink.UI
             }
             else if (popup != null)
             {
-                AlmediaLinkUIManager.ShowLinkPopup(popup);
+                AlmediaLinkUIManager.ShowLinkPopup(popup,
+                    new AlmediaLinkSource(_sourceName, null, AlmediaLinkSourceKind.LinkButton));
             }
             else
             {

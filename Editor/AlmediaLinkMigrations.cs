@@ -41,7 +41,7 @@ namespace AlmediaLink.Editor
         /// </summary>
         private static void MigrateApplyHostSettingsExemption(AlmediaLinkSettings settings)
         {
-            ExemptIfHostVariant(settings.LegacyLinkPopupOverride, v => v.ApplyHostSettings = false);
+            ExemptIfHostVariant(settings.LegacyLinkPopupOverride as AlmediaLink.UI.LinkPopupController, v => v.ApplyHostSettings = false);
             ExemptIfHostVariant(settings.NotificationCardPrefab, v => v.ApplyHostSettings = false);
             ExemptIfHostVariant(settings.ActivityOverlayPrefab, v => v.ApplyHostSettings = false);
         }
